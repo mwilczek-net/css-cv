@@ -137,7 +137,7 @@ def saveLess(fileName, generated):
 		file.write(str(generated))
 
 def saveSass(fileName, generated):
-	with open(fileName+".less", "w") as file:
+	with open(fileName+".sass", "w") as file:
 		file.write(str(generated))
 
 def formatProperties(args):
@@ -155,13 +155,32 @@ def formatProperties(args):
 	with open(args.file+".html", "w") as f:
 		f.write(result)
 
+def formatLess(fileName):
+	with open(fileName+".less", "r") as f:
+		content = f.read()
+	
+	lexer = get_lexer_by_name('less')
+	formatter = HtmlFormatter(
+		full=True,
+		cssclass="source",
+		style='colorful',
+	)
+	result = highlight(content, lexer, formatter)
+	
+	with open(fileName+".less.html", "w") as f:
+		f.write(result)
+
 def cssCVmain():
 	args = parseArgs()
 	
 	generated = processFile(args)
 	formatProperties(args)
+
 	fileName = getFileName(args)
+
 	saveLess(fileName, generated)
+	formatLess(fileName)	
+
 	saveSass(fileName, generated)
 
 
