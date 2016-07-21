@@ -53,6 +53,33 @@ class Property:
 		self.name = name
 		self.level = level
 		self.values = []
+		self.setFormatLess()
+
+	def setFormat(self, format):
+		self.format = format
+		for x in self.values:
+			try:
+				x.setFormat(format)
+			except AttributeError:
+				pass
+
+	def setFormatLess(self):
+		self.setFormat("less")
+
+	def setFormatSass(self):
+		self.setFormat("sass")
+
+	def getFormat(self, format):
+		return self.format
+
+	def getLineEnd(self):
+		return ";" if self.format == "less" else ""
+
+	def getOpening(self):
+		return " {" if self.format == "less" else ""
+
+	def getEnding(self):
+		return "}" if self.format == "less" else ""
 
 	def getName(self):
 		return self.name;
@@ -74,19 +101,19 @@ class Property:
 		for v in self.getValues():
 			if isinstance(v, basestring):
 				if self.getLevel()>=0 and prev_object:
-					result.append(ProcessingUtils.indent_str(self.getLevel(), '}'))
-				result.append(ProcessingUtils.indent_str(self.getLevel(), self.getName(), ': ', ProcessingUtils.parse_string(str(v)), ';'))
+					result.append(ProcessingUtils.indent_str(self.getLevel(), self.getEnding()))
+				result.append(ProcessingUtils.indent_str(self.getLevel(), self.getName(), ': ', ProcessingUtils.parse_string(str(v)), self.getLineEnd()))
 				prev_object = False
 				prev_string = True
 			else:
 				if self.getLevel()>=0 and not prev_object:
-					result.append(ProcessingUtils.indent_str(self.getLevel(), self.getName(), ' {'))
+					result.append(ProcessingUtils.indent_str(self.getLevel(), self.getName(), self.getOpening()))
 				result.append(str(v))
 				prev_object = True
 				prev_string = False
 		
 		if self.getLevel()>=0 and prev_object:
-			result.append(ProcessingUtils.indent_str(self.getLevel(), '}'))
+			result.append(ProcessingUtils.indent_str(self.getLevel(), self.getEnding()))
 		return '\n'.join(result)
 
 	def put(self, property):
@@ -133,11 +160,18 @@ def getFileName(args):
 	
 
 def saveLess(fileName, generated):
+	generated.setFormatLess()
 	with open(fileName+".less", "w") as file:
 		file.write(str(generated))
 
 def saveSass(fileName, generated):
+	generated.setFormatSass()
 	with open(fileName+".sass", "w") as file:
+		file.write(str(generated))
+
+def saveScss(fileName, generated):
+	generated.setFormatLess()
+	with open(fileName+".scss", "w") as file:
 		file.write(str(generated))
 
 def formatProperties(args):
@@ -148,7 +182,7 @@ def formatProperties(args):
 	formatter = HtmlFormatter(
 		full=True,
 		cssclass="source",
-		style='colorful',
+		style='trac',
 	)
 	result = highlight(content, lexer, formatter)
 	
@@ -163,11 +197,26 @@ def formatLess(fileName):
 	formatter = HtmlFormatter(
 		full=True,
 		cssclass="source",
-		style='colorful',
+		style='trac',
 	)
 	result = highlight(content, lexer, formatter)
 	
 	with open(fileName+".less.html", "w") as f:
+		f.write(result)
+
+def formatScss(fileName):
+	with open(fileName+".scss", "r") as f:
+		content = f.read()
+	
+	lexer = get_lexer_by_name('scss')
+	formatter = HtmlFormatter(
+		full=True,
+		cssclass="source",
+		style='trac',
+	)
+	result = highlight(content, lexer, formatter)
+	
+	with open(fileName+".scss.html", "w") as f:
 		f.write(result)
 
 def cssCVmain():
@@ -179,10 +228,12 @@ def cssCVmain():
 	fileName = getFileName(args)
 
 	saveLess(fileName, generated)
-	formatLess(fileName)	
+	formatLess(fileName)
 
 	saveSass(fileName, generated)
 
+	saveScss(fileName, generated)
+	formatScss(fileName)	
 
 cssCVmain()
 
