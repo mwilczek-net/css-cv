@@ -6,6 +6,7 @@ Script generates cv in less, css and pdf format based on properties file
 
 import argparse
 import validators
+import sass
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import get_lexer_by_name
@@ -174,6 +175,11 @@ def saveScss(fileName, generated):
 	with open(fileName+".scss", "w") as file:
 		file.write(str(generated))
 
+def compileCss(fileName, generated):
+	generated.setFormatLess()
+	with open(fileName+".css", "w") as file:
+		file.write(sass.compile(string = str(generated), output_style = "expanded"))
+
 def formatProperties(args):
 	with open(args.file, "r") as f:
 		content = f.read()
@@ -219,6 +225,21 @@ def formatScss(fileName):
 	with open(fileName+".scss.html", "w") as f:
 		f.write(result)
 
+def formatCss(fileName):
+	with open(fileName+".css", "r") as f:
+		content = f.read()
+	
+	lexer = get_lexer_by_name('css')
+	formatter = HtmlFormatter(
+		full=True,
+		cssclass="source",
+		style='trac',
+	)
+	result = highlight(content, lexer, formatter)
+	
+	with open(fileName+".css.html", "w") as f:
+		f.write(result)
+
 def cssCVmain():
 	args = parseArgs()
 	
@@ -233,7 +254,10 @@ def cssCVmain():
 	saveSass(fileName, generated)
 
 	saveScss(fileName, generated)
-	formatScss(fileName)	
+	formatScss(fileName)
+
+	compileCss(fileName, generated)
+	formatCss(fileName)
 
 cssCVmain()
 
