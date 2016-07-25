@@ -1,9 +1,14 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Script generates cv in less, css and pdf format based on properties file
+Script generates cv in less, sass, scss and css format based on properties file.
+
+Apache License Version 2.0
+
+https://github.com/mwilczek-net/css-cv
 """
 
+import re
 import argparse
 import validators
 import sass
@@ -153,12 +158,10 @@ def processFile(args):
 	return generated
 
 def getFileName(args):
-	splitedByPath = args.file.split("/")
-	folder = splitedByPath[0:-1]
-	file = ".".join(splitedByPath[-1].split(".")[0:-1])
-	folder.append(file)
-	return "/".join(folder)
-	
+	try:
+		return re.search("^(.*)\.[^/\\\]+$", args.file).group(1)
+	except:
+		return args.file
 
 def saveLess(fileName, generated):
 	generated.setFormatLess()
