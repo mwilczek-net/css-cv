@@ -52,6 +52,34 @@ class ProcessingUtils:
 		elif validators.url(value):
 			return ''.join(['url("',value,'")'])
 		return value
+	
+	@staticmethod
+	def parseArgs():
+		parser = argparse.ArgumentParser()
+		parser.add_argument("file", help="*.properties file to be processed")
+		return parser.parse_args()
+
+	@staticmethod
+	def processFile(options):
+		generated = Property('', -1)
+		fileContent = []
+		with open(options['file'], "r") as f:
+			for line in f:
+				if line.strip() == "":
+					continue
+				fileContent.append(line)
+				splited = ProcessingUtils.split_property(line)
+				generated.put(splited)
+		options['fileContent'] = fileContent
+		options['generated'] = generated
+	
+	@staticmethod
+	def getFileName(options):
+		try:
+			fileName = re.search("^(.*)\.[^/\\\]+$", options['file']).group(1)
+		except:
+			fileName = options['file']
+		options['fileName'] = fileName
 
 
 class Property:
@@ -142,125 +170,187 @@ class Property:
 			self.values.append(p)
 
 
-def parseArgs():
-	parser = argparse.ArgumentParser()
-	parser.add_argument("file", help="*.properties file to be processed")
-	return parser.parse_args()
-
-def processFile(args):
-	generated = Property('', -1)
-	with open(args.file, "r") as f:
-		for line in f:
-			if line.strip() == "":
-				continue
-			splited = ProcessingUtils.split_property(line)
-			generated.put(splited)
-	return generated
-
-def getFileName(args):
-	try:
-		return re.search("^(.*)\.[^/\\\]+$", args.file).group(1)
-	except:
-		return args.file
-
-def saveLess(fileName, generated):
-	generated.setFormatLess()
-	with open(fileName+".less", "w") as file:
-		file.write(str(generated))
-
-def saveSass(fileName, generated):
-	generated.setFormatSass()
-	with open(fileName+".sass", "w") as file:
-		file.write(str(generated))
-
-def saveScss(fileName, generated):
-	generated.setFormatLess()
-	with open(fileName+".scss", "w") as file:
-		file.write(str(generated))
-
-def compileCss(fileName, generated):
-	generated.setFormatLess()
-	with open(fileName+".css", "w") as file:
-		file.write(sass.compile(string = str(generated), output_style = "expanded"))
-
-def formatProperties(args):
-	with open(args.file, "r") as f:
-		content = f.read()
+class BaseFormatter:
+	def __init__(self, options):
+		self.options = options
+		self.parse()
+		self.format()
 	
-	lexer = get_lexer_by_name('properties')
-	formatter = HtmlFormatter(
-		full=True,
-		cssclass="source",
-		style='trac',
-	)
-	result = highlight(content, lexer, formatter)
+	def saveParsed(self):
+		with open(self.getSaveFileName(), "w") as file:
+			file.write(self.getParsed())
+			
+	def saveFormated(self):
+		with open(self.getSaveFileName() + '.html', "w") as file:
+			file.write(self.getFormated())
+		
+	def format(self):
+		lexer = self.getLexer()
+		formatter = HtmlFormatter(
+			full=True,
+			cssclass="source",
+			style='trac',
+		)
+		self.setFormated(highlight(self.getParsed(), lexer, formatter))
 	
-	with open(args.file+".html", "w") as f:
-		f.write(result)
+	def getSaveFileName(self):
+		raise NotImplementedError()	
+	
+	def getParsed(self):
+		raise NotImplementedError()
+	
+	def parse(self):
+		raise NotImplementedError()
+	
+	def getFormated(self):
+		raise NotImplementedError()
+		
+	def setFormated(self, formated):
+		pass
+		
+	def getLexer():
+		pass
 
-def formatLess(fileName):
-	with open(fileName+".less", "r") as f:
-		content = f.read()
-	
-	lexer = get_lexer_by_name('less')
-	formatter = HtmlFormatter(
-		full=True,
-		cssclass="source",
-		style='trac',
-	)
-	result = highlight(content, lexer, formatter)
-	
-	with open(fileName+".less.html", "w") as f:
-		f.write(result)
 
-def formatScss(fileName):
-	with open(fileName+".scss", "r") as f:
-		content = f.read()
+class PropertiesFormatter(BaseFormatter):
 	
-	lexer = get_lexer_by_name('scss')
-	formatter = HtmlFormatter(
-		full=True,
-		cssclass="source",
-		style='trac',
-	)
-	result = highlight(content, lexer, formatter)
+	def parse(self):
+		pass
 	
-	with open(fileName+".scss.html", "w") as f:
-		f.write(result)
+	def saveParsed(self):
+		pass
+		
+	def getParsed(self):
+		return "".join(self.options['fileContent'])
+		
+	def getSaveFileName(self):
+		return self.options['file']
+	
+	def getFormated(self):
+		return self.options['formatedProperties']
+		
+	def getLexer(self):
+		return get_lexer_by_name('properties')
+		
+	def setFormated(self, formated):
+		self.options['formatedProperties'] = formated
 
-def formatCss(fileName):
-	with open(fileName+".css", "r") as f:
-		content = f.read()
+
+class LessFormatter(BaseFormatter):
+	def getSaveFileName(self):
+		return self.options['fileName'] + ".less"
 	
-	lexer = get_lexer_by_name('css')
-	formatter = HtmlFormatter(
-		full=True,
-		cssclass="source",
-		style='trac',
-	)
-	result = highlight(content, lexer, formatter)
+	def getParsed(self):
+		return self.options['parsedLess']
 	
-	with open(fileName+".css.html", "w") as f:
-		f.write(result)
+	def parse(self):
+		self.options['generated'].setFormatLess()
+		self.options['parsedLess'] = str(self.options['generated'])
+	
+	def getFormated(self):
+		return self.options['formatedLess']
+		
+	def getLexer(self):
+		return get_lexer_by_name('less')
+		
+	def setFormated(self, formated):
+		self.options['formatedLess'] = formated
+
+
+class SassFormatter(BaseFormatter):
+	def getSaveFileName(self):
+		return self.options['fileName'] + ".sass"
+	
+	def getParsed(self):
+		return self.options['parsedSass']
+	
+	def parse(self):
+		self.options['generated'].setFormatSass()
+		self.options['parsedSass'] = str(self.options['generated'])
+	
+	def getFormated(self):
+		return self.options['formatedSass']
+		
+	def getLexer(self):
+		return get_lexer_by_name('sass')
+		
+	def setFormated(self, formated):
+		self.options['formatedSass'] = formated
+		
+
+class ScssFormatter(BaseFormatter):
+	def getSaveFileName(self):
+		return self.options['fileName'] + ".scss"
+	
+	def getParsed(self):
+		return self.options['parsedScss']
+	
+	def parse(self):
+		self.options['generated'].setFormatLess()
+		self.options['parsedScss'] = str(self.options['generated'])
+	
+	def getFormated(self):
+		return self.options['formatedScss']
+		
+	def getLexer(self):
+		return get_lexer_by_name('scss')
+		
+	def setFormated(self, formated):
+		self.options['formatedScss'] = formated
+		
+
+class CssFormatter(BaseFormatter):
+	def getSaveFileName(self):
+		return self.options['fileName'] + ".css"
+	
+	def getParsed(self):
+		return self.options['parsedCss']
+	
+	def parse(self):
+		self.options['generated'].setFormatLess()
+		self.options['parsedCss'] = sass.compile(
+			string = str(self.options['generated']),
+			output_style = "expanded"
+		)
+	
+	def getFormated(self):
+		return self.options['formatedCss']
+		
+	def getLexer(self):
+		return get_lexer_by_name('css')
+		
+	def setFormated(self, formated):
+		self.options['formatedCss'] = formated
+
 
 def cssCVmain():
-	args = parseArgs()
+	args = ProcessingUtils.parseArgs()
 	
-	generated = processFile(args)
-	formatProperties(args)
+	options = {
+		'file': args.file
+	}
+	
+	ProcessingUtils.getFileName(options)
+	ProcessingUtils.processFile(options)
+	
+	properties = PropertiesFormatter(options)
+	properties.saveFormated()
 
-	fileName = getFileName(args)
+	less = LessFormatter(options)
+	less.saveParsed()
+	less.saveFormated()
 
-	saveLess(fileName, generated)
-	formatLess(fileName)
+	sass = SassFormatter(options)
+	sass.saveParsed()
+	sass.saveFormated()
 
-	saveSass(fileName, generated)
+	scss = ScssFormatter(options)
+	scss.saveParsed()
+	scss.saveFormated()
 
-	saveScss(fileName, generated)
-	formatScss(fileName)
-
-	compileCss(fileName, generated)
-	formatCss(fileName)
+	css = CssFormatter(options)
+	css.saveParsed()
+	css.saveFormated()
 
 cssCVmain()
 
